@@ -1251,7 +1251,7 @@ def compose_logs(compose, args):
         if service not in container_names_by_service:
             raise ValueError("unknown service: " + service)
         targets.extend(container_names_by_service[service])
-    podman_args = ['logs']
+    podman_args = ['logs', '--names']
     if args.follow:
         podman_args.append('-f')
     # the default value is to print all logs which is in podman = 0 and not
