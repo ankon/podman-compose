@@ -791,6 +791,7 @@ class PodmanCompose:
         self.dirname = None
         self.pods = None
         self.containers = None
+        self.service_names = None
         self.shared_vols = None
         self.container_names_by_service = None
         self.container_by_name = None
@@ -901,7 +902,7 @@ class PodmanCompose:
         resolve_extends(services, service_names, dotenv_dict)
         flat_deps(services)
         service_names = sorted([ (len(srv["_deps"]), name) for name, srv in services.items() ])
-        service_names = [ name for _, name in service_names]
+        self.service_names = [ name for _, name in service_names]
         # volumes: [...]
         shared_vols = compose.get('volumes', {})
         # shared_vols = list(shared_vols.keys())
@@ -1241,10 +1242,15 @@ def compose_restart(compose, args):
 @cmd_run(podman_compose, 'logs', 'show logs from services')
 def compose_logs(compose, args):
     container_names_by_service = compose.container_names_by_service
-    target = None
-    if args.service not in container_names_by_service:
-        raise ValueError("unknown service: " + args.service)
-    target = container_names_by_service[args.service]
+    print(args)
+    services = args.services
+    if len(services) == 0:
+        services = compose.service_names
+    targets = []
+    for service in services:
+        if service not in container_names_by_service:
+            raise ValueError("unknown service: " + service)
+        targets.extend(container_names_by_service[service])
     podman_args = ['logs']
     if args.follow:
         podman_args.append('-f')
@@ -1254,7 +1260,7 @@ def compose_logs(compose, args):
         podman_args.extend(['--tail', args.tail])
     if args.timestamps:
         podman_args.append('-t')
-    compose.podman.run(podman_args+target)
+    compose.podman.run(podman_args+targets)
 
 ###################
 # command arguments parsing
@@ -1351,8 +1357,8 @@ def compose_logs_parse(parser):
         help="Number of lines to show from the end of the logs for each "
              "container.",
         type=str, default="all")
-    parser.add_argument('service', metavar='service', nargs=None,
-        help='service name')
+    parser.add_argument('services', metavar='services', nargs='*',
+        help='service names')
 
 @cmd_parse(podman_compose, 'push')
 def compose_push_parse(parser):
